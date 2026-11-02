@@ -98,134 +98,24 @@ if is_authorized:
             winner_count = st.sidebar.number_input(
                 f"কতজন বিজয়ী কৃষক নির্বাচন করবেন? (সর্বোচ্চ {total_applicants} জন)",
                 min_value=1,
-                max_value=max(1, total_applicants),
-                value=min(5, max(1, total_applicants))
-            )
+             st.download_button(
+                        label=f"🔵 {selected_union} এর অফিসিয়াল ওয়ার্ড ফাইল ডাউনলোড",
+                        data=word_data,
+                        file_name=f"বিজয়ী_তালিকা_{selected_union}.docx",
+                        mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
+                    )
 
-            if 'lottery_done' not in st.session_state:
-                st.session_state['lottery_done'] = False
-                st.session_state['df_winners'] = None
-                st.session_state['current_union'] = ""
-                st.session_state['total_applicants'] = 0
-                st.session_state['winner_count'] = 0
+                st.success("🎉 আপনার ফাইলগুলো ডাউনলোডের জন্য প্রস্তুত!")
+    else:
+        st.info("ℹ️ অনুগ্রহ করে প্রথমে কৃষকদের মূল এক্সেল ফাইলটি আপলোড করুন। ফাইলে অবশ্যই ইউনিয়ন কলামটি থাকতে হবে।")
+else:
+    st.warning("🛑 আমন ধান সংগ্রহ লটারি অ্যাপটি সিকিউরিটি লক করা রয়েছে। ফি প্রদানের জন্য নির্দেশাবলী অনুসরণ করুন।")
+    st.caption("☎️ যেকোনো সমস্যা বা লাইসেন্স সংক্রান্ত সহযোগিতার জন্য ক্রিয়েটর এর সাথে যোগাযোগ করুন।")
 
-            if st.button(f"🎰 {selected_union} ইউনিয়নের লটারি শুরু করুন"):
-                if total_applicants == 0:
-                    st.error("এই ইউনিয়নে কোনো আবেদনকারী নেই!")
-                else:
-                    with st.spinner("🎰 লটারির ড্র চলছে..."):
-                        time.sleep(1.2)
-                    winner_indices = random.sample(range(total_applicants), winner_count)
-                    df_winners = df_union.iloc[winner_indices].reset_index(drop=True)
-
-                    st.session_state['df_winners'] = df_winners
-                    st.session_state['current_union'] = selected_union
-                    st.session_state['total_applicants'] = total_applicants
-                    st.session_state['winner_count'] = winner_count
-                    st.session_state['lottery_done'] = True
-
-            if st.session_state['lottery_done'] and st.session_state['current_union'] == selected_union:
-                df_winners = st.session_state['df_winners']
-                st.balloons()
-                st.subheader(f"🎉 লটারিতে নির্বাচিত {selected_union} ইউনিয়নের বিজয়ীদের তালিকা")
-                st.dataframe(df_winners)
-
-                excel_buffer = io.BytesIO()
-                with pd.ExcelWriter(excel_buffer, engine='openpyxl') as writer:
-                    df_winners.to_excel(writer, index=False, sheet_name='বিজয়ী তালিকা')
-                excel_data = excel_buffer.getvalue()
-
-                def generate_word_file(winners_dataframe, u_name, total_app, win_num, upazila, district):
-                    doc = Document()
-
-                    for section in doc.sections:
-                        section.top_margin = Inches(0.75)
-                        section.bottom_margin = Inches(0.75)
-                        section.left_margin = Inches(0.75)
-                        section.right_margin = Inches(0.75)
-
-                    p1 = doc.add_paragraph()
-                    p1.alignment = WD_ALIGN_PARAGRAPH.CENTER
-                    
-                    run1 = p1.add_run(f"আমন ধান সংগ্রহ কার্যক্রম-২০২৬\\nউপজেলা: {upazila}, জেলা: {district}।")
-                    run1.font.size = Pt(16)
-                    run1.font.bold = True
-                    p1.add_run().add_break() 
-
-                    run2 = p1.add_run("লটারির মাধ্যমে নির্বাচিত কৃষক বিজয়ীদের অফিসিয়াল তালিকা")
-                    run2.font.size = Pt(14)
-                    run2.font.bold = True
-                    p1.add_run().add_break() 
-
-                    run3 = p1.add_run(f"ইউনিয়ন: {u_name} | মোট আবেদনকারী: {total_app} জন | নির্বাচিত বিজয়ী: {win_num} জন")
-                    run3.font.size = Pt(11)
-
-                    doc.add_paragraph()
-
-                    cols_count = len(winners_dataframe.columns) + 1
-                    table = doc.add_table(rows=1, cols=cols_count)
-                    table.style = 'Table Grid'
-
-                    hdr_cells = table.rows[0].cells
-                    hdr_cells[0].text = 'ক্রমিক'
-                    hdr_cells[0].paragraphs[0].runs[0].font.bold = True
-
-                    for i, col_name in enumerate(winners_dataframe.columns):
-                        hdr_cells[i+1].text = str(col_name)
-                        hdr_cells[i+1].paragraphs[0].runs[0].font.bold = True
-
-                    for idx, row in winners_dataframe.iterrows():
-                        row_cells = table.add_row().cells
-                        row_cells[0].text = str(idx + 1)
-                        for i, col_name in enumerate(winners_dataframe.columns):
-                            val = row[col_name]
-                            row_cells[i+1].text = str(val) if pd.notna(val) else ""
-
-                    p_space = doc.add_paragraph()
-                    for _ in range(5):
-                        p_space.add_run().add_break()
-
-                    footer_table = doc.add_table(rows=1, cols=3)
-                    footer_table.autofit = True
-                    
-                    cell_0 = footer_table.rows[0].cells[0].paragraphs[0]
-                    cell_0.alignment = WD_ALIGN_PARAGRAPH.CENTER
-                    run_sig1 = cell_0.add_run(f"___________________\\nউপজেলা খাদ্য নিয়ন্ত্রক\\n{upazila}, {district}।")
-                    run_sig1.font.size = Pt(10)
-                    run_sig1.font.bold = True
-
-                    cell_1 = footer_table.rows[0].cells[1].paragraphs[0]
-                    cell_1.alignment = WD_ALIGN_PARAGRAPH.CENTER
-                    run_sig2 = cell_1.add_run(f"___________________\\nউপজেলা কৃষি অফিসার\\n{upazila}, {district}।")
-                    run_sig2.font.size = Pt(10)
-                    run_sig2.font.bold = True
-
-                    cell_2 = footer_table.rows[0].cells[2].paragraphs[0]
-                    cell_2.alignment = WD_ALIGN_PARAGRAPH.CENTER
-                    run_sig3 = cell_2.add_run(f"___________________\\nউপজেলা নির্বাহী অফিসার\\n{upazila}, {district}।")
-                    run_sig3.font.size = Pt(10)
-                    run_sig3.font.bold = True
-
-                    word_buffer = io.BytesIO()
-                    doc.save(word_buffer)
-                    return word_buffer.getvalue()
-
-                col1, col2 = st.columns(2)
-                with col1:
-                    st.download_button(
-                        label=f"🟢 {selected_union} এর এক্সেল ফাইল ডাউনলোড",
-                        data=excel_data,
-                        file_name=f"বিজয়ী_তালিকা_{selected_union}.xlsx",
-                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+st.markdown("---")
+st.markdown(
+    "<div style='text-align: center; color: gray; font-size: 14px;'>"
+    "⚙️ কারিগরি সহায়তায়: উপজেলা কৃষি অফিসার।"
+    "</div>", 
+    unsafe_allow_html=True
 )
-
-                with col2:
-                    with st.spinner('ওয়ার্ড ফাইল তৈরি হচ্ছে...'):
-                        word_data = generate_word_file(
-                            df_winners,
-                            st.session_state['current_union'],
-                            st.session_state['total_applicants'],
-                            st.session_state['winner_count'],
-                            selected_upazila,
-                            selected_dist
-                        )
