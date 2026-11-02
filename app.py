@@ -11,20 +11,15 @@ st.set_page_config(page_title="আমন ধান সংগ্রহ লটা�
 st.title("🌾 আমন ধান সংগ্রহ কার্যক্রম-২০২৬")
 st.subheader("🎯 ইউনিয়ন ভিত্তিক কৃষক নির্বাচন লটারি অ্যাপ")
 
-# 📍 লটারি ফিল্টার ও সেटिंग (সাইডবার)
-st.sidebar.header("📍 লটারি ফিল্টার ও সেटिंग")
-
-# 🏛️ সারা দেশের জন্য উপজেলা ও জেলা ইনপুট বক্স
-selected_upazila = st.sidebar.text_input("আপনার উপজেলার নাম লিখুন", value="লাখাই")
-selected_dist = st.sidebar.text_input("আপনার জেলার নাম লিখুন", value="হбиগঞ্জ")
-
-# 👤 সাইডবারের একদম নিচে আপনার ছবি ও পরিচিতি যুক্ত করা হলো
-st.sidebar.markdown("---")
+# ----------------------------------------------------
+# 👤 সাইডবারের সবার উপরে আপনার ছবি ও পরিচিতি (Top Sidebar)
+# ----------------------------------------------------
 st.sidebar.markdown("### 💻 অ্যাপ ক্রিয়েটর")
 
 # 📸 গিটহাব থেকে আপনার আপলোড করা ছবি অটোমেটিক লোড করার ডাইনামিক লিংক
-username = "labib8april2019-cmyk"
+username = "labib8april2019-cmyk" 
 image_url = f"https://raw.githubusercontent.com/{username}/Shahadul34_Lottery/main/profile.jpg"
+
 try:
     st.sidebar.image(image_url, caption="মোঃ শাহাদুল ইসলাম", width=150)
 except Exception:
@@ -37,6 +32,18 @@ st.sidebar.info(
     "**উপজেলা কৃষি অফিসার**"
 )
 
+st.sidebar.markdown("---")
+
+# 📍 লটারি ফিল্টার ও সেটিং (পরিচিতির নিচে থাকবে)
+st.sidebar.header("📍 লটারি ফিল্টার ও সেटिंग")
+
+# 🏛️ সারা দেশের জন্য উপজেলা ও জেলা ইনপুট বক্স
+selected_upazila = st.sidebar.text_input("আপনার উপজেলার নাম লিখুন", value="লাখাই")
+selected_dist = st.sidebar.text_input("আপনার জেলার নাম লিখুন", value="হбиগঞ্জ")
+
+# ----------------------------------------------------
+# 🌾 মূল অ্যাপের কার্যকারিতা শুরু
+# ----------------------------------------------------
 uploaded_file = st.file_uploader("কৃষকদের ডাটাবেজ (Excel File) আপলোড করুন", type=["xlsx", "xls"])
 
 if uploaded_file is not None:
@@ -141,7 +148,7 @@ if uploaded_file is not None:
                 table = doc.add_table(rows=1, cols=cols_count)
                 table.style = 'Table Grid'
 
-                # টেবিল হেডার ফিক্স
+                # টেবিল হেডার ফিক্স করা হলো
                 hdr_cells = table.rows[0].cells
                 hdr_cells[0].text = 'ক্রমিক'
                 hdr_cells[0].paragraphs[0].runs[0].font.bold = True
@@ -229,7 +236,7 @@ else:
 st.markdown("---")
 st.markdown(
     "<div style='text-align: center; color: gray; font-size: 14px;'>"
-    "⚙️ কারিগরি সহায়তায়: <b>মোঃ শাহাদুল ইসলাম</b> (পরিচিতি: ৩০১৩), ৩৪তম বিসিএস (কৃষি), উপজেলা কৃষি অফিসার।"
+    "⚙️ কারিগরি সহায়তায়: <b>মোঃ শাহাদুল ইসলাম</b> উপজেলা কৃষি অফিসার।"
     "</div>", 
     unsafe_allow_html=True
 )
