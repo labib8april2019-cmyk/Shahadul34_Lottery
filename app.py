@@ -1,6 +1,5 @@
-import os
-
-code_content = """import streamlit as st
+import os code_content = """
+import streamlit as st
 import pandas as pd
 import random
 import io
