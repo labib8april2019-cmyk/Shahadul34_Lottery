@@ -23,14 +23,9 @@ st.sidebar.markdown("---")
 st.sidebar.markdown("### 💻 অ্যাপ ক্রিয়েটর")
 
 # 📸 গিটহাব থেকে আপনার আপলোড করা ছবি অটোমেটিক লোড করার ডাইনামিক লিংক
+username = "labib8april2019-cmyk"
+image_url = f"https://raw.githubusercontent.com/{username}/Shahadul34_Lottery/main/profile.jpg"
 try:
-    repo_url = st.context.headers.get("Referer", "")
-    if "github.com" in repo_url:
-        username = repo_url.split("://github.com").split("/")
-    else:
-        username = "shahadul" 
-    
-    image_url = f"https://githubusercontent.com{username}/paddy-lottery-final-2026/main/profile.jpg"
     st.sidebar.image(image_url, caption="মোঃ শাহাদুল ইসলাম", width=150)
 except Exception:
     st.sidebar.warning("📸 প্রোফাইল ছবি লোড হচ্ছে...")
@@ -146,7 +141,7 @@ if uploaded_file is not None:
                 table = doc.add_table(rows=1, cols=cols_count)
                 table.style = 'Table Grid'
 
-                # 🟢 টেবিল হেডার ফিক্স করা হলো
+                # টেবিল হেডার ফিক্স
                 hdr_cells = table.rows[0].cells
                 hdr_cells[0].text = 'ক্রমিক'
                 hdr_cells[0].paragraphs[0].runs[0].font.bold = True
@@ -225,7 +220,7 @@ if uploaded_file is not None:
                     mime="application/vnd.openxmlformats-officedocument.wordprocessingml.document"
                 )
 
-           st.success("🎉 আপনার ফাইলগুলো ডাউনলোডের জন্য প্রস্তুত!")
+            st.success("🎉 আপনার ফাইলগুলো ডাউনলোডের জন্য প্রস্তুত!")
 
 else:
     st.info("ℹ️ অনুগ্রহ করে প্রথমে কৃষকদের মূল এক্সেল ফাইলটি আপলোড করুন। ফাইলে অবশ্যই ইউনিয়ন কলামটি থাকতে হবে।")
