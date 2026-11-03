@@ -3,6 +3,7 @@ import pandas as pd
 import random
 import io
 import time
+from datetime import datetime, timedelta
 import requests
 from docx import Document
 from docx.shared import Pt, Inches
@@ -13,21 +14,15 @@ st.title("🌾 আমন ধান সংগ্রহ কার্যক্র�
 st.subheader("🎯 ইউনিয়ন ভিত্তিক কৃষক নির্বাচন লটারি অ্যাপ")
 
 # ----------------------------------------------------
-# 👤 সাইডবারের সবার উপরে আপনার ছবি ও পরিচিতি (Top Sidebar)
+# 👤 সাইডবারের সবার উপরে আপনার পরিচিতি
 # ----------------------------------------------------
 st.sidebar.markdown("### 💻 অ্যাপ ক্রিয়েটর")
 
 try:
-    repo_url = st.context.headers.get("Referer", "")
-    if "github.com" in repo_url:
-        username = repo_url.split("github.com/")[1].split("/")[0]
-    else:
-        username = "labib8april2019-cmyk" 
-    
-    image_url = f"https://raw.githubusercontent.com/{username}/Shahadul34_Lottery/main/profile.jpg"
+    image_url = "https://raw.githubusercontent.com/labib8april2019-cmyk/Shahadul34_Lottery/main/profile.jpg"
     st.sidebar.image(image_url, caption="মোঃ শাহাদুল ইসলাম", width=150)
 except Exception:
-    st.sidebar.warning("📸 প্রোফাইল ছবি লোড হচ্ছে...")
+    pass
 
 st.sidebar.info(
     "**মোঃ শাহাদুল ইসলাম**\n\n"
@@ -38,89 +33,128 @@ st.sidebar.info(
 
 st.sidebar.markdown("---")
 
-# 📍 লটারি ফিল্টার ও সেटिंग
-st.sidebar.header("📍 লটারি ফিল্টার ও সেटिंग")
-
-# 🏛️ উপজেলা ও জেলা ইনপুট বক্স
+# 📍 লটারি ফিল্টার ও সেটিং
+st.sidebar.header("📍 লটারি ফিল্টার ও সেটিং")
 selected_upazila = st.sidebar.text_input("আপনার উপজেলার নাম লিখুন", value="লাখাই").strip()
-selected_dist = st.sidebar.text_input("আপনার জেলার নাম লিখুন", value="হবিগঞ্জ").strip()
+selected_dist = st.sidebar.text_input("আপনার জেলার নাম লিখুন", value="হбиগঞ্জ").strip()
 
 # ----------------------------------------------------
-# 💳 নতুন ফিচার: অটোমেটিক লাইসেন্স অ্যাক্টিভেশন পোর্টাল (Registration & Payment)
+# 💾 ফায়ারবেস রিয়েলটাইম ডাটাবেজ ইন্টিগ্রেশন (২ বছরের মেয়াদের জন্য)
 # ----------------------------------------------------
-st.sidebar.markdown("---")
-st.sidebar.subheader("🔑 লাইসেন্স কি অ্যাক্টিভেশন")
+FIREBASE_URL = "https://amiikrishok-default-rtdb.firebaseio.com/"
 
-# রিমোট ডাটাবেজ থেকে লাইসেন্স কি চেক করার ডামি ফাংশন (এখানে আপনার Firebase/Supabase এপিআই বসবে)
-def get_license_from_db(upazila_name):
-    ONLINE_DATABASE = {
-        "লাখাই": "lakhai-2026-ok",
-        "নবীগঞ্জ": "nabiganj-5542",
-        "বানিয়াচং": "baniachong-9981",
-        "মাধবপুর": "madhabpur-4432",
-    }
-    return ONLINE_DATABASE.get(upazila_name, None)
-
-# পেমেন্ট ভেরিফিকেশন ফাংশন
-def verify_payment_and_get_key(upazila, district, trx_id, payment_method):
-    if len(trx_id) >= 8:
-        actual_key = get_license_from_db(upazila)
-        if actual_key:
-            return actual_key
-        else:
-            return f"{upazila.lower()}-auto-{random.randint(1000,9999)}"
+def get_upazila_data(upazila_name):
+    if not upazila_name:
+        return None
+    try:
+        url = f"{FIREBASE_URL}unlocked_upazilas/{upazila_name}.json"
+        response = requests.get(url, timeout=5)
+        if response.status_code == 200 and response.json() is not None:
+            return response.json()
+    except Exception:
+        pass
     return None
 
-# ব্যবহারকারী যদি নতুন হন এবং লাইসেন্স কি না থাকে, তবে তিনি পেমেন্ট সেকশনটি ব্যবহার করবেন
-show_payment_gateway = st.sidebar.checkbox("💳 নতুন লাইসেন্স কিনতে চান? (৪,৯৯৯ টাকা)")
+def save_or_renew_upazila(upazila_name, trx_id, method, is_renew=False):
+    if not upazila_name:
+        return False
+    try:
+        url = f"{FIREBASE_URL}unlocked_upazilas/{upazila_name}.json"
+        current_time = datetime.now()
+        
+        # ২ বছর মেয়াদ যোগ (৭৩০ দিন)
+        expiry_time = current_time + timedelta(days=730)
+        
+        data = {
+            "status": "unlocked",
+            "trx_id": trx_id,
+            "payment_method": method,
+            "activation_date": current_time.strftime("%Y-%m-%d %H:%M:%S"),
+            "expiry_date": expiry_time.strftime("%Y-%m-%d %H:%M:%S"),
+            "expiry_timestamp": expiry_time.timestamp(),
+            "type": "renew" if is_renew else "new_activation"
+        }
+        response = requests.put(url, json=data, timeout=5)
+        if response.status_code == 200:
+            return True
+    except Exception:
+        pass
+    return False
 
-if show_payment_gateway:
-    st.sidebar.markdown(
-        f"<div style='background-color:#fff3cd; padding:10px; border-radius:5px; border-left:5px solid #ffc107; color:#856404;'>"
-        f"<b>পেমেন্ট নির্দেশিকা:</b><br>"
-        f"আপনার উপজেলা (<b>{selected_upazila}</b>) আনলক করতে নিচের নগদ/রকেটে ৪,৯৯৯ টাকা Send Money করুন।<br>"
-        f"📱 <b>নগদ ও রকেট নম্বর:</b> 01725314028"
-        f"</div>", 
-        unsafe_allow_html=True
-    )
-    
-    method = st.sidebar.selectbox("পেমেন্ট মাধ্যম সিলেক্ট করুন", ["নগদ (Nagad)", "রকেট (Rocket)"])
-    trx_input = st.sidebar.text_input("টাকা পাঠানোর পর ট্রানজেকশন আইডি (TrxID) দিন").strip()
-    
-    if st.sidebar.button("✅ পেমেন্ট নিশ্চিত করুন ও কি (Key) নিন"):
-        if not selected_upazila or not selected_dist or not trx_input:
-            st.sidebar.error("❌ দয়া করে উপজেলা, জেলা এবং ট্রানজেকশন আইডি সঠিকভাবে লিখুন।")
-        else:
-            with st.sidebar.spinner("পেমেন্ট ভেরিফাই করা হচ্ছে..."):
-                time.sleep(2)
-                generated_key = verify_payment_and_get_key(selected_upazila, selected_dist, trx_input, method)
-                
-                if generated_key:
-                    st.sidebar.success("🎉 পেমেন্ট সফল হয়েছে!")
-                    st.sidebar.code(f"আপনার লাইসেন্স কি: {generated_key}", language="text")
-                    st.sidebar.info("💡 এই কি-টি কপি করে নিচের 'লাইসেন্স কি' বক্সে পেস্ট করুন।")
-                else:
-                    st.sidebar.error("❌ ট্রানজেকশন আইডিটি সঠিক নয় অথবা পেমেন্টটি এখনো ভেরিফাই করা যায়নি।")
+# ----------------------------------------------------
+# 🔑 লাইসেন্স ও সাবস্ক্রিপশন চেক লজিক
+# ----------------------------------------------------
+st.sidebar.markdown("---")
+st.sidebar.subheader("🔑 লাইসেন্স স্ট্যাটাস")
 
-# 🔑 লাইসেন্স কি সিকিউরিটি ইনপুট বক্স
-license_key = st.sidebar.text_input("🔑 উপজেলার লাইসেন্স কি (License Key) দিন", type="password")
-
-# 🔒 সিকিউরিটি ভেরিফিকেশন লজিক (অনলাইন ও অফলাইন কম্বাইন্ড)
 is_authorized = False
-expected_key = get_license_from_db(selected_upazila)
+upazila_info = get_upazila_data(selected_upazila)
 
-if expected_key:
-    if license_key == expected_key:
+if upazila_info:
+    expiry_timestamp = upazila_info.get("expiry_timestamp", 0)
+    current_timestamp = time.time()
+    
+    # মেয়াদ চেক করা হচ্ছে
+    if current_timestamp < expiry_timestamp:
+        expiry_dt = datetime.fromtimestamp(expiry_timestamp)
+        days_left = (expiry_dt - datetime.now()).days
+        
+        st.sidebar.success(f"✅ {selected_upazila} উপজেলা আনলকড!")
+        st.sidebar.info(f"⏳ লাইসেন্সের মেয়াদ বাকি: {days_left} দিন\n(মেয়াদের শেষ তারিখ: {expiry_dt.strftime('%d-%b-%Y')})")
         is_authorized = True
-        st.sidebar.success("✅ লাইসেন্স সফলভাবে ভেরিফাইড!")
-    elif license_key != "":
-        st.sidebar.error("❌ ভুল লাইসেন্স কি! এই উপজেলার জন্য কোডটি সঠিক নয়।")
+    else:
+        # ২ বছর পার হয়ে গেলে লক হবে এবং ২০০০ টাকা রিনিউ অপশন দেখাবে
+        st.sidebar.error(f"❌ {selected_upazila} উপজেলার লাইসেন্সের মেয়াদ শেষ হয়ে গেছে!")
+        st.sidebar.markdown("### 🔄 লাইসেন্স রিনিউ করুন")
+        
+        st.sidebar.markdown(
+            f"<div style='background-color:#f8d7da; padding:10px; border-radius:5px; border-left:5px solid #dc3545; color:#721c24; font-size:13px;'> "
+            f"<b>রিনিউয়াল নির্দেশিকা:</b><br>"
+            f"পরবর্তী ২ বছরের জন্য অ্যাপটি সচল করতে নিচে দেওয়া নম্বরে <b>২,০০০ টাকা</b> Send Money করুন।<br>"
+            f"📱 <b>নগদ/রকেট:</b> 01725314028"
+            f"</div>", 
+            unsafe_allow_html=True
+        )
+        
+        renew_method = st.sidebar.selectbox("পেমেন্ট মাধ্যম", ["নগদ (Nagad)", "রকেট (Rocket)"], key="renew_m")
+        renew_trx = st.sidebar.text_input("রিনিউ ট্রানজেকশন আইডি (TrxID) দিন", key="renew_t").strip()
+        
+        if st.sidebar.button("🔄 লাইসেন্স রিনিউ নিশ্চিত করুন"):
+            if len(renew_trx) < 8:
+                st.sidebar.error("❌ সঠিক ট্রানজেকশন আইডি দিন (সর্বনিম্ন ৮ অক্ষর)।")
+            else:
+                with st.sidebar.spinner("লাইসেন্স নবায়ন করা হচ্ছে..."):
+                    if save_or_renew_upazila(selected_upazila, renew_trx, renew_method, is_renew=True):
+                        st.sidebar.success("🎉 লাইসেন্স সফলভাবে পরবর্তী ২ বছরের জন্য রিনিউ হয়েছে!")
+                        time.sleep(1)
+                        st.rerun()
 else:
-    if license_key != "" and selected_upazila in license_key:
-        is_authorized = True
-        st.sidebar.success("✅ ডাইনামিক লাইসেন্স ভেরিফাইড!")
-    elif selected_upazila != "" and license_key != "":
-        st.sidebar.warning("🛑 এই উপজেলাটি নিবন্ধিত নয় অথবা লাইসেন্স কি ভুল।")
+    # একদম নতুন অ্যাক্টিভেশন (৪,৯৯৯ টাকা)
+    st.sidebar.warning(f"🛑 {selected_upazila} উপজেলাটি এখনো একটিভেট করা হয়নি।")
+    
+    show_payment_gateway = st.sidebar.checkbox("💳 নতুন লাইসেন্স একটিভ করুন (৪,৯৯৯ টাকা)")
+    if show_payment_gateway:
+        st.sidebar.markdown(
+            f"<div style='background-color:#fff3cd; padding:10px; border-radius:5px; border-left:5px solid #ffc107; color:#856404; font-size:13px;'>"
+            f"<b>অ্যাক্টিভেশন নির্দেশিকা (মেয়াদ ২ বছর):</b><br>"
+            f"আপনার উপজেলা আনলক করতে নিচের নম্বরে <b>৪,৯৯৯ টাকা</b> Send Money করুন।<br>"
+            f"📱 <b>নগদ/রকেট:</b> 01725314028"
+            f"</div>", 
+            unsafe_allow_html=True
+        )
+        
+        method = st.sidebar.selectbox("পেমেন্ট মাধ্যম", ["নগদ (Nagad)", "রকেট (Rocket)"], key="act_m")
+        trx_input = st.sidebar.text_input("ট্রানজেকশন আইডি (TrxID) দিন", key="act_t").strip()
+        
+        if st.sidebar.button("✅ অ্যাক্টিভেশন নিশ্চিত করুন"):
+            if not trx_input or len(trx_input) < 8:
+                st.sidebar.error("❌ অনুগ্রহ করে সঠিক ট্রানজেকশন আইডি দিন।")
+            else:
+                with st.sidebar.spinner("ডাটাবেজে তথ্য সেভ করা হচ্ছে..."):
+                    if save_or_renew_upazila(selected_upazila, trx_input, method, is_renew=False):
+                        st.sidebar.success(f"🎉 {selected_upazila} উপজেলা ২ বছরের জন্য সফলভাবে অ্যাক্টিভেট হয়েছে!")
+                        time.sleep(1)
+                        st.rerun()
 
 # ----------------------------------------------------
 # 🌾 মূল অ্যাপের কার্যকারিতা (লকড মেকানিজম)
@@ -189,11 +223,13 @@ if is_authorized:
                 st.subheader(f"🎉 লটারিতে নির্বাচিত {selected_union} ইউনিয়নের বিজয়ীদের তালিকা")
                 st.dataframe(df_winners)
 
+                # ১. এক্সেল ফাইল জেনারেটর (Buffer)
                 excel_buffer = io.BytesIO()
                 with pd.ExcelWriter(excel_buffer, engine='openpyxl') as writer:
                     df_winners.to_excel(writer, index=False, sheet_name='বিজয়ী তালিকা')
                 excel_data = excel_buffer.getvalue()
 
+                # ২. ওয়ার্ড ফাইল (.docx) জেনারেটর ফাংশন
                 def generate_word_file(winners_dataframe, u_name, total_app, win_num, upazila, district):
                     doc = Document()
 
@@ -300,9 +336,9 @@ if is_authorized:
     else:
         st.info("ℹ️ অনুগ্রহ করে প্রথমে কৃষকদের মূল এক্সেল ফাইলটি আপলোড করুন। ফাইলে অবশ্যই ইউনিয়ন কলামটি থাকতে হবে।")
 else:
-    st.warning("🛑 অ্যাপটি ব্যবহারের জন্য সিকিউরিটি লক করা রয়েছে। অনুগ্রহ করে সাইডবারে আপনার উপজেলা অনুযায়ী সঠিক 'লাইসেন্স কি' (License Key) প্রদান করুন।")
-    st.info("☎️ লাইসেন্স কি সংগ্রহ করতে অ্যাপের বাম পাশের সাইডবারে যান, মোবাইলে অ্যাপ ওপেন করলে উপরে থাকা দুটি তীর চিহ্নতে ক্লিক করলে সাইডবার শো করবে। সেখানে উপজেলা বক্সে থাকা লাখাই এবং জেলার বক্সে থাকা হবিগঞ্জ এর স্থলে আপনার নিজ উপজেলা এবং জেলার নাম অবশ্যই পরিবর্তন করে নিবেন। প্রয়োজনে **মোঃ শাহাদুল ইসলাম (উপজেলা কৃষি অফিসার, লাখাই)** এর সাথে যোগাযোগ করুন। e-mail: labib8april2019@gmail.com, Mobile: 01725314028")
+    st.info("☎️ লাইসেন্স একটিভ/নবায়ন করতে উপরে দেওয়া রকেট/নগদ নাম্বারে ফি প্রদান করে TrxID সাবমিট করুন।")
 
+# 🏛️ মূল অ্যাপের নিচে সুন্দর ফুটার ডিজাইন
 st.markdown("---")
 st.markdown(
     "<div style='text-align: center; color: gray; font-size: 14px;'>"
