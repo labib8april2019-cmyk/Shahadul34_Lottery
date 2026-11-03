@@ -42,8 +42,8 @@ st.sidebar.markdown("---")
 st.sidebar.header("📍 লটারি ফিল্টার ও সেटिंग")
 
 # 🏛️ উপজেলা ও জেলা ইনপুট বক্স
-selected_upazila = st.sidebar.text_input("আপনার উপজেলার নাম লিখুন", value="লাখাই").strip()
-selected_dist = st.sidebar.text_input("আপনার জেলার নাম লিখুন", value="হবিগঞ্জ").strip()
+selected_upazila = st.sidebar.text_input("আপনার উপজেলার নাম লিখুন", value="").strip()
+selected_dist = st.sidebar.text_input("আপনার জেলার নাম লিখুন", value="").strip()
 
 # ----------------------------------------------------
 # 💳 নতুন ফিচার: অটোমেটিক লাইসেন্স অ্যাক্টিভেশন পোর্টাল (Registration & Payment)
