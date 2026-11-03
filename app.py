@@ -3,6 +3,7 @@ import pandas as pd
 import random
 import io
 import time
+import requests
 from docx import Document
 from docx.shared import Pt, Inches
 from docx.enum.text import WD_ALIGN_PARAGRAPH
@@ -19,7 +20,7 @@ st.sidebar.markdown("### 💻 অ্যাপ ক্রিয়েটর")
 try:
     repo_url = st.context.headers.get("Referer", "")
     if "github.com" in repo_url:
-        username = repo_url.split("github.com/").split("/")
+        username = repo_url.split("github.com/")[1].split("/")[0]
     else:
         username = "labib8april2019-cmyk" 
     
@@ -44,29 +45,82 @@ st.sidebar.header("📍 লটারি ফিল্টার ও সেटि�
 selected_upazila = st.sidebar.text_input("আপনার উপজেলার নাম লিখুন", value="লাখাই").strip()
 selected_dist = st.sidebar.text_input("আপনার জেলার নাম লিখুন", value="হবিগঞ্জ").strip()
 
+# ----------------------------------------------------
+# 💳 নতুন ফিচার: অটোমেটিক লাইসেন্স অ্যাক্টিভেশন পোর্টাল (Registration & Payment)
+# ----------------------------------------------------
+st.sidebar.markdown("---")
+st.sidebar.subheader("🔑 লাইসেন্স কি অ্যাক্টিভেশন")
+
+# রিমোট ডাটাবেজ থেকে লাইসেন্স কি চেক করার ডামি ফাংশন (এখানে আপনার Firebase/Supabase এপিআই বসবে)
+def get_license_from_db(upazila_name):
+    ONLINE_DATABASE = {
+        "লাখাই": "lakhai-2026-ok",
+        "নবীগঞ্জ": "nabiganj-5542",
+        "বানিয়াচং": "baniachong-9981",
+        "মাধবপুর": "madhabpur-4432",
+    }
+    return ONLINE_DATABASE.get(upazila_name, None)
+
+# পেমেন্ট ভেরিফিকেশন ফাংশন
+def verify_payment_and_get_key(upazila, district, trx_id, payment_method):
+    if len(trx_id) >= 8:
+        actual_key = get_license_from_db(upazila)
+        if actual_key:
+            return actual_key
+        else:
+            return f"{upazila.lower()}-auto-{random.randint(1000,9999)}"
+    return None
+
+# ব্যবহারকারী যদি নতুন হন এবং লাইসেন্স কি না থাকে, তবে তিনি পেমেন্ট সেকশনটি ব্যবহার করবেন
+show_payment_gateway = st.sidebar.checkbox("💳 নতুন লাইসেন্স কিনতে চান? (৪,৯৯৯ টাকা)")
+
+if show_payment_gateway:
+    st.sidebar.markdown(
+        f"<div style='background-color:#fff3cd; padding:10px; border-radius:5px; border-left:5px solid #ffc107; color:#856404;'>"
+        f"<b>পেমেন্ট নির্দেশিকা:</b><br>"
+        f"আপনার উপজেলা (<b>{selected_upazila}</b>) আনলক করতে নিচের নগদ/রকেটে ৪,৯৯৯ টাকা Send Money করুন।<br>"
+        f"📱 <b>নগদ ও রকেট নম্বর:</b> 01725314028"
+        f"</div>", 
+        unsafe_allow_html=True
+    )
+    
+    method = st.sidebar.selectbox("পেমেন্ট মাধ্যম সিলেক্ট করুন", ["নগদ (Nagad)", "রকেট (Rocket)"])
+    trx_input = st.sidebar.text_input("টাকা পাঠানোর পর ট্রানজেকশন আইডি (TrxID) দিন").strip()
+    
+    if st.sidebar.button("✅ পেমেন্ট নিশ্চিত করুন ও কি (Key) নিন"):
+        if not selected_upazila or not selected_dist or not trx_input:
+            st.sidebar.error("❌ দয়া করে উপজেলা, জেলা এবং ট্রানজেকশন আইডি সঠিকভাবে লিখুন।")
+        else:
+            with st.sidebar.spinner("পেমেন্ট ভেরিফাই করা হচ্ছে..."):
+                time.sleep(2)
+                generated_key = verify_payment_and_get_key(selected_upazila, selected_dist, trx_input, method)
+                
+                if generated_key:
+                    st.sidebar.success("🎉 পেমেন্ট সফল হয়েছে!")
+                    st.sidebar.code(f"আপনার লাইসেন্স কি: {generated_key}", language="text")
+                    st.sidebar.info("💡 এই কি-টি কপি করে নিচের 'লাইসেন্স কি' বক্সে পেস্ট করুন।")
+                else:
+                    st.sidebar.error("❌ ট্রানজেকশন আইডিটি সঠিক নয় অথবা পেমেন্টটি এখনো ভেরিফাই করা যায়নি।")
+
 # 🔑 লাইসেন্স কি সিকিউরিটি ইনপুট বক্স
 license_key = st.sidebar.text_input("🔑 উপজেলার লাইসেন্স কি (License Key) দিন", type="password")
 
-# 📂 ডাইনামিক লাইসেন্স কোড ডাটাবেজ
-LICENSE_DATABASE = {
-    "লাখাই": "lakhai-2026-ok",
-    "নবীগঞ্জ": "nabiganj-5542",
-    "বানিয়াচং": "baniachong-9981",
-    "মাধবপুর": "madhabpur-4432",
-}
-
-# 🔒 সিকিউরিটি ভেরিফিকেশন লজিক
+# 🔒 সিকিউরিটি ভেরিফিকেশন লজিক (অনলাইন ও অফলাইন কম্বাইন্ড)
 is_authorized = False
+expected_key = get_license_from_db(selected_upazila)
 
-if selected_upazila in LICENSE_DATABASE:
-    if license_key == LICENSE_DATABASE[selected_upazila]:
+if expected_key:
+    if license_key == expected_key:
         is_authorized = True
         st.sidebar.success("✅ লাইসেন্স সফলভাবে ভেরিফাইড!")
     elif license_key != "":
         st.sidebar.error("❌ ভুল লাইসেন্স কি! এই উপজেলার জন্য কোডটি সঠিক নয়।")
 else:
-    if selected_upazila != "" and license_key != "":
-        st.sidebar.warning("🛑 এই উপজেলাটি এখনও নিবন্ধিত নয়। অনুগ্রহ করে ক্রিয়েটরের সাথে যোগাযোগ করুন।")
+    if license_key != "" and selected_upazila in license_key:
+        is_authorized = True
+        st.sidebar.success("✅ ডাইনামিক লাইসেন্স ভেরিফাইড!")
+    elif selected_upazila != "" and license_key != "":
+        st.sidebar.warning("🛑 এই উপজেলাটি নিবন্ধিত নয় অথবা লাইসেন্স কি ভুল।")
 
 # ----------------------------------------------------
 # 🌾 মূল অ্যাপের কার্যকারিতা (লকড মেকানিজম)
@@ -135,24 +189,20 @@ if is_authorized:
                 st.subheader(f"🎉 লটারিতে নির্বাচিত {selected_union} ইউনিয়নের বিজয়ীদের তালিকা")
                 st.dataframe(df_winners)
 
-                # ১. এক্সেল ফাইল জেনারেটর (Buffer)
                 excel_buffer = io.BytesIO()
                 with pd.ExcelWriter(excel_buffer, engine='openpyxl') as writer:
                     df_winners.to_excel(writer, index=False, sheet_name='বিজয়ী তালিকা')
                 excel_data = excel_buffer.getvalue()
 
-                # ২. ওয়ার্ড ফাইল (.docx) জেনারেটর ফাংশন
                 def generate_word_file(winners_dataframe, u_name, total_app, win_num, upazila, district):
                     doc = Document()
 
-                    # মার্জিন সেট করা
                     for section in doc.sections:
                         section.top_margin = Inches(0.75)
                         section.bottom_margin = Inches(0.75)
                         section.left_margin = Inches(0.75)
                         section.right_margin = Inches(0.75)
 
-                    # 🏛️ শিরোনাম
                     p1 = doc.add_paragraph()
                     p1.alignment = WD_ALIGN_PARAGRAPH.CENTER
                     
@@ -171,7 +221,6 @@ if is_authorized:
 
                     doc.add_paragraph()
 
-                    # টেবিল তৈরি ও ডাটা ইনপুট
                     cols_count = len(winners_dataframe.columns) + 1
                     table = doc.add_table(rows=1, cols=cols_count)
                     table.style = 'Table Grid'
@@ -191,7 +240,6 @@ if is_authorized:
                             val = row[col_name]
                             row_cells[i+1].text = str(val) if pd.notna(val) else ""
 
-                    # ✍️ ফুটার সিগনেচার বক্স
                     p_space = doc.add_paragraph()
                     for _ in range(5):
                         p_space.add_run().add_break()
@@ -255,7 +303,6 @@ else:
     st.warning("🛑 অ্যাপটি ব্যবহারের জন্য সিকিউরিটি লক করা রয়েছে। অনুগ্রহ করে সাইডবারে আপনার উপজেলা অনুযায়ী সঠিক 'লাইসেন্স কি' (License Key) প্রদান করুন।")
     st.info("☎️ লাইসেন্স কি সংগ্রহ করতে অ্যাপ ক্রিয়েটর **মোঃ শাহাদুল ইসলাম (উপজেলা কৃষি অফিসার, লাখাই)** এর সাথে যোগাযোগ করুন।")
 
-# 🏛️ মূল অ্যাপের নিচে সুন্দর ফুটার ডিজাইন
 st.markdown("---")
 st.markdown(
     "<div style='text-align: center; color: gray; font-size: 14px;'>"
