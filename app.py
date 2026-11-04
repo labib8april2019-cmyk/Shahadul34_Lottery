@@ -35,7 +35,7 @@ st.sidebar.markdown("---")
 
 # 📍 লটারি ফিল্টার ও সেটিং
 st.sidebar.header("📍 লটারি ফিল্টার ও সেটিং")
-selected_upazila = st.sidebar.text_input("আপনার উপজেলার নাম লিখুন", value="লাখাই").strip()
+selected_upazila = st.sidebar.text_input("আপনার উপজেলার নাম লিখুন", value=" ").strip()
 selected_dist = st.sidebar.text_input("আপনার জেলার নাম লিখুন", value="হбиগঞ্জ").strip()
 
 # ----------------------------------------------------
